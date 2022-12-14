@@ -1,3 +1,4 @@
+#Followed tutorial by AlexTheAnalyst(YouTube)
 --CLEANING DATA IN SQL QUERIES
 Select * 
 From Project1..NashvilleHousing 
