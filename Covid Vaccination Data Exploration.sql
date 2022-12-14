@@ -1,3 +1,4 @@
+#Followed tutorial by AlexTheAnalyst(YouTube)
 select * 
 from Project1..CovidDeaths
 order by 3,4
