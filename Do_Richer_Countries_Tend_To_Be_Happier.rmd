@@ -1,0 +1,289 @@
+---
+title: 'Do richer countries tend to be happier?'
+author: "Siva Sai Chandra Annepu, Shrutanvi Sugam Datar, Sindhu Raghavendra Moktali, Uma Rajiv Kanetkar"
+
+date: "12/03/2022"
+output:
+  html_document: default
+  header-includes: \usepackage{color}
+fontsize: 12pt
+margin: 1in
+---
+
+
+```{r setup, echo=FALSE, message=F, warning=F}
+
+#==============================================================================
+#   This chunk will be used for every assignment
+#==============================================================================
+
+  # Clear the working space
+    rm(list = ls())
+
+  #Set working directory
+setwd("/Users/shrutanvidatar/MSSEM1/Econometrics")
+#getwd()
+
+### Load the packages (all must have been installed)
+    library(tidyverse)
+    library(doBy)
+    library(foreign)
+    library(knitr)
+    library(lmtest)
+    library(readstata13)
+    library(sandwich)
+    library(stargazer)
+    library(AER)
+    library(gdata)
+    library(wooldridge)
+    library(openintro)
+    library(erer)
+    #correcting hetroskedasticity
+cse=function(reg) {
+    rob=sqrt(diag(vcovHC(reg, type="HC1")))
+    return(rob)
+    }
+```
+### `Part A: Understanding the data`
+
+### Abstract
+
+In every social science, the end goal is to find what factors contribute to happiness. Every year the United Nations conducts a global survey in which people from around 150 countries evaluate their lives. The end result of the survey is known as the World Happiness Report. One would assume that high GDP per capita will play a key role here, with countries having high GDP per capita ranking the highest. But the correlation is far from perfect.
+This project is an endeavor to find what really constitutes human happiness. We are using data from the World Happiness Report 2022.
+
+### Data Description
+
+Our data consists of 146 observations with 11 variables. 
+
+- Happiness Index: Happiness Index measures life satisfaction and the feeling of happiness based on multiple factors in life. It is ranking from 0-10 with 0 being the worst and 10 being the people being happiest living in that country. Happiness Index is measured in points. This is the dependent variable(Y). 
+- GDPPC: This is Gross Domestic Product per Capita which shows a country's GDP divided by the total population. It assess the economic prosperity of a country. GDPPC is measured in USD per person. It is the sum of value added by all the industries in a country. This is going to be the variable of interest(X).
+- Population: The total number of people living in a country. Population is a suspected variable which might be affecting the happiness of a country. Population is measured in numbers in true value.
+- Life Expectancy: Life expectancy refers to the number of years a person can be expected to live in a particular country. Life expectancy is affected by the facilities provided by the government in a country. Better the life expectancy means healthier the population, higher accessibility to healthcare facilities and better quality of life. It is measured in number of years.
+- Social Support: Social support implies the social ties or having friends and relatives that one can rely on if necessary. It is ranking from 1 to 10 with 10 being the most support you get socially. It is measured in points.
+- Freedom to make life choices: Freedom is the most fundamental factor that affects happiness of the country's citizens. Freedom to make life choices represents the control of all the individuals over their lives. It can be right to vote, right to make their own decisions, opportunity to travel etc. This variable is suspected to affect the happiness index positively as giving individuals freedom to make their own choices will lead them to pursue their life goals and in-turn keep them motivated and happy. This is measured in points as it is a ranking from 0-10.
+- Generosity: Generosity means giving back to the society. It measures readiness of people to donate to charity. Generosity is directly related to prosperity and so seems like an important factor in considering Happiness Index. Generosity is measured in points.
+- Spending on Education: Spending on education by the government of a country may have an effect on happiness index. It is measured in percent spending of GDP.
+- Spending on Health: Spending by the government on health of the population of a country is an important factor in our study. Heathy the people, better lives and thus happier the people. Spending on health resources is measured in percentage.
+- International homicide rate: It is the rate of crime per 100,000 population. It is measured in numbers.
+
+### `Part B: Descriptive Statistics`
+
+```{r data, echo=FALSE, message=FALSE, warning=FALSE, comment = ""}
+
+# Data section: loading data
+happy=read.csv("happinessindex.csv", header=T, sep=",")
+
+# dropping rows that have null values
+happy<-drop_na(happy,c("country", "hap_ind", "gdppc", "log_gdppc", "pop", "edu", "health", "crime", "social", "life_exp", "freedom", "generosity"))
+
+# Descriptive statistics of happiness index using stargazer
+stargazer(happy, type = 'text', median = TRUE, title = "Happiness Index Descriptive Statistics", summary.stat=c("n", "mean", "median", "sd"))
+
+```
+
+##### Summary for descriptive statistics
+
+- For variables Education(edu), Spending on health(health), International homicide rate(crime) , Population(pop), Happiness Index(hap_ind), GDP per capita(gdppc), Generosity the data is right skewed as mean is greater than median
+
+- For other variables the data is left skewed as median is greater than mean. Interestingly,  when we consider the log of gdppc the data transforms from right (gdppc) skewed to left (log_gdppc) skewed.
+
+- The standard deviation of GDPPC and Population is very high which indicates very high data dispersion around its mean. For other variables the standard deviation is comparable with the mean and median so the data distribution may be clustered around its mean.
+
+- The population mean in almost 4 times the median. Hence median may be the representative of the group.
+
+
+```{R scatterplot , echo = FALSE, message =FALSE, warning = FALSE, comment = "", }
+
+#scatterplot with happiness index on the y-axis and GDPPC on the x-axis
+ggplot(happy, aes(y=hap_ind,  x=gdppc)) + geom_point(col="purple") + 
+        labs(title = "Scatterplot of Happiness index on GDP per capita in USD",  y = "Happiness Index ", x = "GDP per capita") +
+        stat_smooth(method=lm, col = "orange", se=FALSE) +
+        geom_text(aes(label=country), hjust=1, vjust=1)
+
+#variable of interest
+#scatterplot with happiness index on the y-axis and log(GDPPC) on the x-axis
+ggplot(happy, aes(y=hap_ind,  x=log_gdppc)) + geom_point(col="purple") + 
+        labs(title = "Scatterplot of Happiness index on Log GDP per capita in USD",  y = "Happiness Index ", x = "Log GDP per capita") +
+        stat_smooth(method=lm, col = "orange", se=FALSE) +
+        geom_text(aes(label=country), hjust=1, vjust=1)
+
+```
+
+##### Summary for scatterplots
+
+From the scatter plot of Happiness index on gdppc, it can be observed that the regression line is not able to explain most of data and there is a lot of noise. 
+Whereas, plotting happiness index on log(gdppc) reduces the noise and the regression line explains most of the data and so, is a better fit.
+
+
+
+```{R histogram , echo = FALSE, message =FALSE, warning = FALSE, comment = "", }
+
+#Constructing a histogram of log(gdppc)
+ggplot(happy) + geom_histogram(aes(x=log_gdppc), col="blue", binwidth = 1) +
+        labs(title = "Histogram of Log(gdppc) ", x="Log(gdppc) ", y = "Frequency")
+
+
+```
+
+##### Summary for Histogram
+
+The above histogram shows the distribution of Log(gdppc). From the histogram, we can confirm the conclusions made from the descriptive statistics table i.e. the distribution of log(gdppc) is left skewed.
+
+
+### `Part C: Regression Analysis: What is the effect of different variables on happiness index?`
+#### Baseline Regression
+```{R linearRegression , echo = FALSE, message =FALSE, warning = FALSE, comment = "", }
+
+#Reg of hap_ind on log_gdppc
+reg1 = lm(hap_ind ~ log_gdppc, data = happy) 
+
+#Reg of hap_ind on log_gdppc, log(population)
+reg2 = lm(hap_ind ~ log_gdppc+ log(pop), data = happy)
+
+#Reg of hap_ind on log_gdppc, log(population), life expectancy
+reg3 = lm(hap_ind ~ log_gdppc + log(pop) + life_exp, data = happy) 
+
+#Reg of hap_ind on log_gdppc, log(population), life expectancy, social support
+reg4 = lm(hap_ind ~ log_gdppc+log(pop)+ life_exp + social , data = happy)
+
+#Reg of hap_ind on log_gdppc, log(population), life expectancy, social support, freedom to make life choices
+reg5 = lm(hap_ind ~ log_gdppc+ log(pop)+life_exp + social + freedom , data = happy)
+
+#Reg of hap_ind on log_gdppc, log(population), life expectancy, social support, freedom to make life choices, generosity
+reg6 = lm(hap_ind ~ log_gdppc + log(pop) + life_exp + social + freedom+generosity, data = happy)
+
+#Reg of hap_ind on log_gdppc, life_exp, social, freedom
+reg7 = lm(hap_ind ~ log_gdppc + life_exp + social + freedom, data = happy)
+
+
+#Comparing results of all the regressions
+stargazer(reg1, reg2, reg3, reg4, reg5, reg6, reg7, se=list(cse(reg1), cse(reg2), cse(reg3), cse(reg4), cse(reg5), cse(reg6), cse(reg7)),
+    title="Baseline Regression Analysis", type="text", 
+    star.cutoffs=NA, df=FALSE, digits=3)
+
+
+```
+
+##### Summary for Baseline Regression table
+
+Regression 1: It is a simple linear regression of 'happiness index' on variable of interest i.e 'log(gdppc)'. For an increase in log of gdppc by 10%, happiness index increases by 0.0733 points.
+
+Regression 2: On adding 'log(pop)' to regression 1, holding other variables constant, increasing log of population by 10% decreases happiness index by 0.0002 points. There is no omitted variable bias in Regression 1.
+
+Regression 3: On adding 'life_exp' to regression 2, holding other variables constant, an increase in life expectancy by 10 years, increases happiness index by 0.63 points. Adding a new variable, it can be observed that there is an upward omitted variable bias observed in regression 2. 'Life_exp' is negatively correlated with log gdppc.
+
+Regression 4: On adding 'social' to regression 3, holding other variables constant, increasing social support by 1 point increases happiness index by 3.101 points. Adding a new variable, it can be observed that there is an upward omitted variable bias observed in regression 3. 'Social' is positively correlated with log of gdppc.
+
+Regression 5: On adding freedom to regression 4, holding other variables constant, increasing freedom by 0.1 point increases happiness index by 0.2428 points. Adding a new variable, it can be observed that there is a downward variable bias observed in regression 4. 'Freedom' is negatively correlated with log of gdppc.
+
+Regression 6: On adding 'generosity' to regression 5, holding other variables constant, increasing generosity by 0.1 point increases happiness index by 0.0454 points. Adding a new variable, it can be observed that there is a downward variable bias observed in regression 5. 'Generosity' is negatively correlated with log of gdppc.
+
+From the above regression, we can conclude that log of population has little to no effect on the happiness index since the coefficients are very small and statistically insignificant. The adjusted R2 did not change much from regression 5 to regression 6. Thus, we can say that Generosity may or may not have much effect on happiness index as it is statistically insignificant. This can be confirmed from testing the hypothesis if log pop and generosity can simultaneously be zero.
+
+### `Part D: Linear Hypothesis Testing`
+
+```{R F stat1 , echo = FALSE, message =FALSE, warning = FALSE, comment = "", }
+
+#Running lht to check log(pop) and generosity are zero simultaneously
+
+lht(reg6, c("log(pop)=0", "generosity=0"), white.adjust="hc1")
+
+```
+
+From F-Test we fail to reject the null hypothesis. Hence, we can conclude that both log(pop) and generosity are simultaneously zero and can be excluded.
+Since variables log of population and generosity are statistically insignificant simultaneously, we don’t consider them in regression 7. This model is able to explain 74.1% of the variation in happiness index, which is more than the other regression models. So, this will be our baseline regression.
+
+
+### `Part E: Alternate Specifications`
+
+```{R linearRegression3 , echo = FALSE, message =FALSE, warning = FALSE, comment = "", }
+
+#Creating dummy for log(gdppc)
+happy$log_gdppc_dummy=ifelse(happy$log_gdppc< 10,1,0)
+
+#Creating dummy for Life expectancy
+happy$life_exp_dummy=ifelse(happy$life_exp > 50,1,0)
+
+#Reg of hap_ind on log_gdppc, life_exp, social, freedom
+areg1 = lm(hap_ind ~ log_gdppc+life_exp + social + freedom, data = happy)
+
+#Reg of hap_ind on log_gdppc, life_exp, social, freedom, education
+areg2 = lm(hap_ind ~ log_gdppc+ +life_exp + social + freedom + edu , data = happy)
+
+#Reg of hap_ind on log_gdppc, life_exp, social, freedom, education, health
+areg3 = lm(hap_ind ~ log_gdppc+ life_exp + social + freedom + edu + health, data = happy)
+
+#Reg of hap_ind on log_gdppc, life_exp, social, freedom, education, health, crime
+areg4 = lm(hap_ind ~ log_gdppc+life_exp + social + freedom + edu + health + crime, data = happy)
+
+#Reg of hap_ind on log_gdppc, life_exp, social, freedom, education, health, Interaction between health and Life_exp 
+areg5 = lm(hap_ind ~ log_gdppc+ life_exp + social + freedom + edu + health + I(health * life_exp), data = happy)
+
+#Reg of hap_ind on log_gdppc, life_exp_dummy, social, freedom, education, health, Interaction between health and Life_exp 
+areg6 = lm(hap_ind ~ log_gdppc+ life_exp_dummy + social + freedom + edu + health + I(health * life_exp), data = happy)
+
+#Reg of hap_ind on log_gdppc_dummy, life_exp, social, freedom, education, health, Interaction between health and Life_exp 
+areg7 = lm(hap_ind ~ log_gdppc_dummy + life_exp + social + freedom + edu + health + I(health * life_exp), data = happy)
+
+#Comparing results of all the regressions
+stargazer(areg1, areg2, areg3, areg4, areg5, areg6, areg7, se=list(cse(reg1), cse(reg2), cse(reg3), cse(reg4), cse(reg5), cse(areg6), cse(areg7)),
+    title="Alternate Regression Analysis", type="text", 
+    star.cutoffs=NA, df=FALSE, digits=3)
+
+```
+
+##### Summary for Alternate specification regressions
+
+Baseline regression is taken for comparison in the table
+
+Regression 2: On adding 'Education(edu)' to the baseline regression, holding other variables constant, increasing education by 0.1 point, increases happiness index by 0.0025 points. There is downward omitted variable bias for coefficient of log of gdppc in reg 1. 'Education(edu)' and 'log(gdppc)' have negative correlation. 
+
+Regression 3: On adding 'health' to the regression 2, coefficient of log(gdppc) doesn't change. Holding other variables constant, increasing spending on health by 1% decreases Happiness Index by 0.008. 
+
+Regression 4: On adding 'crime' to the regression 3, coefficient of log(gdppc) doesn't change. Holding other variables constant, increasing crime by 1 point increases Happiness Index by 0.00003 points.
+
+Regression 5: On adding an interaction term i.e '(health * life_exp)' to the regression 3, holding other variables constant, the estimated effect of health on happiness index increases by 0.22 points with respect to an increase of 10 years of life expectancy. There is downward omitted variable bias for coefficient of log of gdppc in reg 3. 
+
+To confirm if Health, Education and interaction term between health and life expectancy can simultaneously be Zero and thus be excluded from the regression, we conduct F-Test.
+
+
+```{R F stat2 , echo = FALSE, message =FALSE, warning = FALSE, comment = "", }
+
+#Running lht to check health, edu and I(health * life_exp) be zero simultaneously
+
+lht(areg5, c("health=0", "edu=0", "I(health * life_exp)=0"), white.adjust="hc1")
+
+
+```
+
+By running linear hypothesis test, the null hypothesis can be rejected at less than 1% significance level. And thus, we can say that Health, Education and health * life expectancy cannot be excluded from the regression.
+
+Regression 6: To answer the question whether life expectancy has an effect on happiness index of a country, we considered life expectancy as a binary variable i.e we divided the group into countries with life expectancy greater than 50 years of age as 1 and less than 50 years of age as 0. 
+By adding binary variable of life expectancy, we can conclude that the difference between the mean happiness index of 2 groups is 0.379 points i.e on an average the countries with higher life expectancy have happiness index 0.379 points less than the countries with lower than 50 years of life expectancy.
+We, thus, could conclude that 'Higher the life expectancy, lower the happiness index'.
+
+Regression 7: To answer the question whether the GDP of the country has an effect on happiness index, we considered log of GDPPC as a binary variable i.e we divided the group into countries with log(gdppc) less than 10 points as 1 and those with greater than 10 points as 0.
+By adding binary variable of log of GDPPC, we can conclude that the difference between the mean happiness index of 2 groups is 0.465 points, i.e. on an average countries having higher GDPPC are 0.465 points more happier than the countries with lower GDPPC.
+Hence, we can conclude that 'Richer countries have more probability of having higher happiness index than countries with lower GDPPC.
+From the alternate specifications table, it is visible that Regression 7 is the best fit for the model with the adjusted R2 of 79.2%. 
+
+
+### `Part G: Validity`
+
+**Internal Validity:**
+  
+  - Omitted variable bias
+  
+  - Happiness is fundamentally a subjective term and thus is hard to quantify.
+  
+**External Validity:**
+  
+  - Smaller countries have been excluded from the study
+
+
+### `Part H: Conclusion`
+
+In conclusion, our group thinks that there is a causal effect of GDPPC on Happiness Index as countries with higher GDPPC tend to be 0.465 points more happy than those with lower GDPPC.
+Interestingly, Generosity and Population of the country have no effect on Happiness Index.
+
+Also, other important variables affecting the Happiness Index of a country are healthy life expectancy, freedom to make life choices, Social support and Education. 
