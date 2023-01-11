@@ -1,6 +1,6 @@
 ---
 title: 'Do richer countries tend to be happier?'
-author: "Siva Sai Chandra Annepu, Shrutanvi Sugam Datar, Sindhu Raghavendra Moktali, Uma Rajiv Kanetkar"
+author: "Uma Rajiv Kanetkar, Siva Sai Chandra Annepu, Shrutanvi Sugam Datar, Sindhu Raghavendra Moktali"
 
 date: "12/03/2022"
 output:
